@@ -1,0 +1,3 @@
+py -m streamlit run app.py
+
+https://chatgpt.com/c/69d8fdd0-ad98-8320-b56a-9e37faeab011
