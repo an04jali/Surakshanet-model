@@ -144,9 +144,206 @@ html, body, [class*="css"] {
 .beh-s { background:rgba(239,68,68,.15); color:var(--red); }
 
 .ph { display:flex; align-items:baseline; gap:12px; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid var(--border); }
-.ph h1 { font-size:24px; font-weight:800; color:var(--txt); margin:0; }
+.ph h1 { font-size:24px; font-weight:800; color:#f8fafc !important; margin:0; }
 
 [data-testid="stSidebar"] { background: var(--bg2) !important; border-right: 1px solid var(--border) !important; }
+
+/* ─── SIDEBAR NAVIGATION: DARK + CLEAR ───────────────────────────────────── */
+section[data-testid="stSidebar"] {
+    background: var(--bg2) !important;
+    color: #f8fafc !important;
+}
+
+/* Keep sidebar permanently visible */
+section[data-testid="stSidebar"],
+section[data-testid="stSidebar"][aria-expanded="false"] {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-width: 280px !important;
+    width: 280px !important;
+    transform: none !important;
+}
+
+[data-testid="stSidebarCollapsedControl"] {
+    display: none !important;
+}
+
+/* Navigation buttons */
+section[data-testid="stSidebar"] button,
+section[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] {
+    background: #131c2e !important;
+    color: #f8fafc !important;
+    border: 1px solid #263957 !important;
+    border-radius: 12px !important;
+    min-height: 62px !important;
+    box-shadow: none !important;
+}
+
+/* Button text and emoji */
+section[data-testid="stSidebar"] button p,
+section[data-testid="stSidebar"] button span,
+section[data-testid="stSidebar"] button div {
+    color: #f8fafc !important;
+    font-family: 'Syne', sans-serif !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+}
+
+/* Hover */
+section[data-testid="stSidebar"] button:hover {
+    background: #1b2a43 !important;
+    border-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+/* Focus */
+section[data-testid="stSidebar"] button:focus,
+section[data-testid="stSidebar"] button:focus-visible {
+    background: #17263e !important;
+    color: #ffffff !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59,130,246,.25) !important;
+}
+
+/* Source radio labels */
+div[data-testid="stRadio"] label,
+div[data-testid="stRadio"] label p,
+div[data-testid="stRadio"] label span {
+    color: #f1f5f9 !important;
+    font-weight: 700 !important;
+}
+
+/* Toggle labels */
+div[data-testid="stCheckbox"] label,
+div[data-testid="stCheckbox"] label p,
+div[data-testid="stCheckbox"] label span {
+    color: #f1f5f9 !important;
+    font-weight: 600 !important;
+}
+
+/* File uploader text */
+div[data-testid="stFileUploader"] label,
+div[data-testid="stFileUploader"] p,
+div[data-testid="stFileUploader"] span {
+    color: #e2e8f0 !important;
+}
+
+
+/* TEXT VISIBILITY / READABILITY */
+section[data-testid="stSidebar"] button,
+section[data-testid="stSidebar"] button p,
+section[data-testid="stSidebar"] button span,
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div {
+    color: #e2e8f0 !important;
+}
+
+section[data-testid="stSidebar"] button {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    min-height: 48px !important;
+}
+
+div[data-testid="stRadio"] label,
+div[data-testid="stRadio"] label p,
+div[data-testid="stRadio"] label span {
+    color: #e2e8f0 !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+}
+
+div[data-testid="stToggle"] label,
+div[data-testid="stToggle"] label p,
+div[data-testid="stToggle"] label span {
+    color: #e2e8f0 !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+}
+
+div[data-testid="stWidgetLabel"] p,
+div[data-testid="stWidgetLabel"] label,
+.stMarkdown p {
+    color: #e2e8f0 !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #f1f5f9 !important;
+}
+
+/* FORCE SIDEBAR TO REMAIN VISIBLE */
+section[data-testid="stSidebar"] {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-width: 280px !important;
+    width: 280px !important;
+    transform: none !important;
+}
+
+section[data-testid="stSidebar"][aria-expanded="false"] {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-width: 280px !important;
+    width: 280px !important;
+    transform: none !important;
+}
+
+[data-testid="stSidebarCollapsedControl"] {
+    display: none !important;
+}
+
+
+/* ─── FILE UPLOADER: DARK THEME ──────────────────────────────────────────── */
+div[data-testid="stFileUploader"] {
+    background: #131c2e !important;
+    border: 1px solid #263957 !important;
+    border-radius: 12px !important;
+    padding: 10px !important;
+}
+
+/* Drag/drop area */
+div[data-testid="stFileUploaderDropzone"] {
+    background: #131c2e !important;
+    border: 1px dashed #3b4d6b !important;
+    border-radius: 10px !important;
+    color: #e2e8f0 !important;
+}
+
+/* Upload button */
+div[data-testid="stFileUploader"] button {
+    background: #1e2d45 !important;
+    color: #f8fafc !important;
+    border: 1px solid #3b4d6b !important;
+    border-radius: 9px !important;
+    font-weight: 700 !important;
+}
+
+div[data-testid="stFileUploader"] button:hover {
+    background: #263957 !important;
+    color: #ffffff !important;
+    border-color: #3b82f6 !important;
+}
+
+/* File uploader helper text */
+div[data-testid="stFileUploader"] small,
+div[data-testid="stFileUploader"] span,
+div[data-testid="stFileUploader"] p {
+    color: #cbd5e1 !important;
+}
+
+/* Upload heading */
+div[data-testid="stFileUploader"] label {
+    color: #f8fafc !important;
+    font-weight: 700 !important;
+}
+
+/* Radio/source controls */
+div[data-testid="stRadio"] label {
+    color: #f8fafc !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 

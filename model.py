@@ -1,7 +1,7 @@
 import cv2
 import torch
 import numpy as np
-
+from tracker import CentroidTracker
 
 # ============================================================
 # DEVICE
@@ -35,7 +35,7 @@ print("[SurakshaNet] YOLOv5 loaded successfully.")
 
 PERSON_CLASS = 0
 
-CONF_THRESHOLD = 0.35
+CONF_THRESHOLD = 0.50
 
 YOLO_INPUT_SIZE = 416
 
@@ -64,6 +64,18 @@ _last_direction_variance = 0.0
 # Current behaviour
 _last_behavior = "NORMAL"
 _last_behavior_conf = 0.0
+
+# ============================================================
+# BEHAVIOUR TEMPORAL STABILITY
+# ============================================================
+
+_suspicious_streak = 0
+_normal_streak = 0
+
+# Smoothed motion values
+_smooth_speed = 0.0
+_smooth_movement = 0.0
+_smooth_direction = 0.0
 
 
 # ============================================================
@@ -163,9 +175,11 @@ def calculate_motion(current_centers):
 
             speed = np.sqrt(dx ** 2 + dy ** 2)
 
-            # Ignore extremely tiny movements caused
-            # by detection noise.
-            if speed > 2:
+            # Ignore detector/bounding-box jitter.
+            if speed < 5:
+                speed = 0.0
+
+            if speed > 0:
 
                 angle = np.degrees(
                     np.arctan2(dy, dx)
@@ -480,43 +494,36 @@ def classify_behavior(
     direction_variance,
     risk_score
 ):
+    """
+    Conservative crowd behaviour classification.
 
-    # High movement + inconsistent directions
+    This is a heuristic behaviour layer, not a trained
+    action-recognition model. A single noisy frame should
+    not be treated as suspicious.
+    """
+
+    # Stationary / very slow person -> NORMAL.
+    if avg_speed < 12:
+        return "NORMAL", 95.0
+
+    # High movement with disordered directions.
     if (
-        avg_speed > 25
-        and direction_variance > 0.45
+        avg_speed >= 28
+        and movement_intensity >= 0.50
+        and direction_variance >= 0.45
     ):
+        confidence = min(95.0, 65.0 + risk_score * 0.30)
+        return "SUSPICIOUS", round(confidence, 1)
 
-        confidence = min(
-            99,
-            60 + risk_score * 0.35
-        )
-
-        return "SUSPICIOUS", round(
-            confidence,
-            1
-        )
-
-    # Strong movement but reasonably consistent
+    # Very strong crowd movement.
     if (
-        avg_speed > 30
-        and movement_intensity > 0.5
+        avg_speed >= 35
+        and movement_intensity >= 0.60
     ):
+        confidence = min(93.0, 60.0 + risk_score * 0.30)
+        return "SUSPICIOUS", round(confidence, 1)
 
-        confidence = min(
-            95,
-            55 + risk_score * 0.3
-        )
-
-        return "SUSPICIOUS", round(
-            confidence,
-            1
-        )
-
-    return "NORMAL", round(
-        max(50, 100 - risk_score),
-        1
-    )
+    return "NORMAL", 90.0
 
 
 # ============================================================
@@ -538,6 +545,12 @@ def process_frame(
     global _last_avg_speed
     global _last_movement_intensity
     global _last_direction_variance
+    global _suspicious_streak
+    global _normal_streak
+    global _smooth_speed
+    global _smooth_movement
+    global _smooth_direction
+
 
     _frame_counter += 1
 
@@ -673,20 +686,61 @@ def process_frame(
     # STEP 8: BEHAVIOUR
     # --------------------------------------------------------
 
-    if (
-        _frame_counter % behavior_skip == 0
-        or _frame_counter == 1
-    ):
+    # --------------------------------------------------------
+    # TEMPORAL MOTION SMOOTHING
+    # --------------------------------------------------------
 
-        (
-            _last_behavior,
-            _last_behavior_conf
-        ) = classify_behavior(
-            avg_speed,
-            movement_intensity,
-            direction_variance,
-            risk_score
-        )
+    speed_alpha = 0.20
+    movement_alpha = 0.20
+    direction_alpha = 0.20
+
+    _smooth_speed = (
+        speed_alpha * avg_speed
+        + (1.0 - speed_alpha) * _smooth_speed
+    )
+
+    _smooth_movement = (
+        movement_alpha * movement_intensity
+        + (1.0 - movement_alpha) * _smooth_movement
+    )
+
+    _smooth_direction = (
+        direction_alpha * direction_variance
+        + (1.0 - direction_alpha) * _smooth_direction
+    )
+
+    # --------------------------------------------------------
+    # BEHAVIOUR CANDIDATE
+    # --------------------------------------------------------
+
+    candidate_behavior, candidate_conf = classify_behavior(
+        _smooth_speed,
+        _smooth_movement,
+        _smooth_direction,
+        risk_score
+    )
+
+    # --------------------------------------------------------
+    # TEMPORAL CONFIRMATION
+    # --------------------------------------------------------
+
+    if candidate_behavior == "SUSPICIOUS":
+        _suspicious_streak += 1
+        _normal_streak = 0
+
+        # Require 5 consecutive suspicious frames.
+        if _suspicious_streak >= 5:
+            _last_behavior = "SUSPICIOUS"
+            _last_behavior_conf = candidate_conf
+
+    else:
+        _normal_streak += 1
+        _suspicious_streak = 0
+
+        # Return to NORMAL quickly when movement stops.
+        if _normal_streak >= 2:
+            _last_behavior = "NORMAL"
+            _last_behavior_conf = candidate_conf
 
     # --------------------------------------------------------
     # STEP 9: VISUALIZATION
