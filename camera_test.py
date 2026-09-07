@@ -1,33 +1,42 @@
 import cv2
-from model import predict_risk
+from ultralytics import YOLO
+
+print("Loading model...")
+model = YOLO("yolov8n.pt")
+print("Model loaded.")
 
 cap = cv2.VideoCapture(0)
 
-while True:
+print("Camera opened:", cap.isOpened())
+
+if not cap.isOpened():
+    print("ERROR: Camera could not be opened.")
+    exit()
+
+for i in range(30):
+
     ret, frame = cap.read()
 
     if not ret:
+        print("ERROR: Could not read frame.")
         break
 
-    risk, conf = predict_risk(frame)
+    results = model(
+        frame,
+        imgsz=640,
+        conf=0.10,
+        verbose=False
+    )
 
-    color = (0, 255, 0)
-    if risk == "MEDIUM":
-        color = (0, 165, 255)
-    elif risk == "HIGH":
-        color = (0, 0, 255)
+    boxes = results[0].boxes
 
-    cv2.putText(frame, f"{risk} ({conf}%)",
-                (30, 50),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                color,
-                2)
+    count = 0
 
-    cv2.imshow("SurakshaNet Live", frame)
+    if boxes is not None:
+        count = len(boxes)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    print(f"Frame {i + 1}: detections = {count}")
 
 cap.release()
-cv2.destroyAllWindows()
+
+print("Camera test finished.")

@@ -2,6 +2,8 @@ import cv2
 import torch
 import numpy as np
 from tracker import CentroidTracker
+from ultralytics import YOLO
+
 
 # ============================================================
 # DEVICE
@@ -11,22 +13,16 @@ device = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
 )
 
-print(f"[SurakshaNet] Loading YOLOv5 on {device}...")
+print(f"[SurakshaNet] Loading YOLOv8 person detector on {device}...")
 
 
 # ============================================================
 # YOLO MODEL
 # ============================================================
 
-yolo_model = torch.hub.load(
-    "ultralytics/yolov5",
-    "yolov5s",
-    pretrained=True
-).to(device)
+yolo_model = YOLO("yolov8n.pt")
 
-yolo_model.eval()
-
-print("[SurakshaNet] YOLOv5 loaded successfully.")
+print("[SurakshaNet] YOLOv8 person detector loaded successfully.")
 
 
 # ============================================================
@@ -35,9 +31,9 @@ print("[SurakshaNet] YOLOv5 loaded successfully.")
 
 PERSON_CLASS = 0
 
-CONF_THRESHOLD = 0.50
+CONF_THRESHOLD = 0.25
 
-YOLO_INPUT_SIZE = 416
+YOLO_INPUT_SIZE = 640
 
 # Maximum distance a person can move between
 # consecutive frames for matching
@@ -64,6 +60,7 @@ _last_direction_variance = 0.0
 # Current behaviour
 _last_behavior = "NORMAL"
 _last_behavior_conf = 0.0
+
 
 # ============================================================
 # BEHAVIOUR TEMPORAL STABILITY
@@ -504,6 +501,7 @@ def classify_behavior(
 
     # Stationary / very slow person -> NORMAL.
     if avg_speed < 12:
+
         return "NORMAL", 95.0
 
     # High movement with disordered directions.
@@ -512,16 +510,32 @@ def classify_behavior(
         and movement_intensity >= 0.50
         and direction_variance >= 0.45
     ):
-        confidence = min(95.0, 65.0 + risk_score * 0.30)
-        return "SUSPICIOUS", round(confidence, 1)
+
+        confidence = min(
+            95.0,
+            65.0 + risk_score * 0.30
+        )
+
+        return "SUSPICIOUS", round(
+            confidence,
+            1
+        )
 
     # Very strong crowd movement.
     if (
         avg_speed >= 35
         and movement_intensity >= 0.60
     ):
-        confidence = min(93.0, 60.0 + risk_score * 0.30)
-        return "SUSPICIOUS", round(confidence, 1)
+
+        confidence = min(
+            93.0,
+            60.0 + risk_score * 0.30
+        )
+
+        return "SUSPICIOUS", round(
+            confidence,
+            1
+        )
 
     return "NORMAL", 90.0
 
@@ -551,23 +565,44 @@ def process_frame(
     global _smooth_movement
     global _smooth_direction
 
-
     _frame_counter += 1
 
     # --------------------------------------------------------
-    # STEP 1: YOLO DETECTION
+    # STEP 1: YOLOv8 DETECTION
     # --------------------------------------------------------
 
     results = yolo_model(
         frame,
-        size=YOLO_INPUT_SIZE
+        imgsz=YOLO_INPUT_SIZE,
+        conf=CONF_THRESHOLD,
+        verbose=False
     )
 
-    detections = (
-        results.xyxy[0]
-        .cpu()
-        .numpy()
-    )
+    boxes = results[0].boxes
+
+    detections = []
+
+    if boxes is not None:
+
+        xyxy = boxes.xyxy.cpu().numpy()
+        confs = boxes.conf.cpu().numpy()
+        classes = boxes.cls.cpu().numpy()
+
+        for box, conf, cls in zip(
+            xyxy,
+            confs,
+            classes
+        ):
+
+            detections.append([
+                *box,
+                conf,
+                cls
+            ])
+
+    # --------------------------------------------------------
+    # STEP 2: PERSON DETECTIONS
+    # --------------------------------------------------------
 
     person_boxes = []
 
@@ -577,7 +612,7 @@ def process_frame(
 
         if (
             int(cls) == PERSON_CLASS
-            and conf > CONF_THRESHOLD
+            and float(conf) > CONF_THRESHOLD
         ):
 
             clean_box = list(
@@ -597,7 +632,7 @@ def process_frame(
         avg_conf /= count
 
     # --------------------------------------------------------
-    # STEP 2: SMOOTH CROWD COUNT
+    # STEP 3: SMOOTH CROWD COUNT
     # --------------------------------------------------------
 
     _last_counts.append(count)
@@ -611,7 +646,7 @@ def process_frame(
     )
 
     # --------------------------------------------------------
-    # STEP 3: ANONYMOUS CENTERS
+    # STEP 4: ANONYMOUS CENTERS
     # --------------------------------------------------------
 
     current_centers = [
@@ -620,7 +655,7 @@ def process_frame(
     ]
 
     # --------------------------------------------------------
-    # STEP 4: MOTION ANALYSIS
+    # STEP 5: MOTION ANALYSIS
     # --------------------------------------------------------
 
     motion = calculate_motion(
@@ -644,7 +679,7 @@ def process_frame(
     _last_direction_variance = direction_variance
 
     # --------------------------------------------------------
-    # STEP 5: DENSITY
+    # STEP 6: DENSITY
     # --------------------------------------------------------
 
     density = calculate_density(
@@ -653,7 +688,7 @@ def process_frame(
     )
 
     # --------------------------------------------------------
-    # STEP 6: ZONES
+    # STEP 7: ZONES
     # --------------------------------------------------------
 
     zones = count_zones(
@@ -662,7 +697,7 @@ def process_frame(
     )
 
     # --------------------------------------------------------
-    # STEP 7: RISK SCORE
+    # STEP 8: RISK SCORE
     # --------------------------------------------------------
 
     risk_score = calculate_risk_score(
@@ -683,11 +718,7 @@ def process_frame(
     )
 
     # --------------------------------------------------------
-    # STEP 8: BEHAVIOUR
-    # --------------------------------------------------------
-
-    # --------------------------------------------------------
-    # TEMPORAL MOTION SMOOTHING
+    # STEP 9: TEMPORAL MOTION SMOOTHING
     # --------------------------------------------------------
 
     speed_alpha = 0.20
@@ -710,7 +741,7 @@ def process_frame(
     )
 
     # --------------------------------------------------------
-    # BEHAVIOUR CANDIDATE
+    # STEP 10: BEHAVIOUR CANDIDATE
     # --------------------------------------------------------
 
     candidate_behavior, candidate_conf = classify_behavior(
@@ -721,29 +752,33 @@ def process_frame(
     )
 
     # --------------------------------------------------------
-    # TEMPORAL CONFIRMATION
+    # STEP 11: TEMPORAL CONFIRMATION
     # --------------------------------------------------------
 
     if candidate_behavior == "SUSPICIOUS":
+
         _suspicious_streak += 1
         _normal_streak = 0
 
         # Require 5 consecutive suspicious frames.
         if _suspicious_streak >= 5:
+
             _last_behavior = "SUSPICIOUS"
             _last_behavior_conf = candidate_conf
 
     else:
+
         _normal_streak += 1
         _suspicious_streak = 0
 
         # Return to NORMAL quickly when movement stops.
         if _normal_streak >= 2:
+
             _last_behavior = "NORMAL"
             _last_behavior_conf = candidate_conf
 
     # --------------------------------------------------------
-    # STEP 9: VISUALIZATION
+    # STEP 12: VISUALIZATION
     # --------------------------------------------------------
 
     display_frame = frame.copy()

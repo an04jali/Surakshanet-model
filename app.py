@@ -144,91 +144,9 @@ html, body, [class*="css"] {
 .beh-s { background:rgba(239,68,68,.15); color:var(--red); }
 
 .ph { display:flex; align-items:baseline; gap:12px; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid var(--border); }
-.ph h1 { font-size:24px; font-weight:800; color:#f8fafc !important; margin:0; }
+.ph h1 { font-size:24px; font-weight:800; color:var(--txt); margin:0; }
 
 [data-testid="stSidebar"] { background: var(--bg2) !important; border-right: 1px solid var(--border) !important; }
-
-/* ─── SIDEBAR NAVIGATION: DARK + CLEAR ───────────────────────────────────── */
-section[data-testid="stSidebar"] {
-    background: var(--bg2) !important;
-    color: #f8fafc !important;
-}
-
-/* Keep sidebar permanently visible */
-section[data-testid="stSidebar"],
-section[data-testid="stSidebar"][aria-expanded="false"] {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    min-width: 280px !important;
-    width: 280px !important;
-    transform: none !important;
-}
-
-[data-testid="stSidebarCollapsedControl"] {
-    display: none !important;
-}
-
-/* Navigation buttons */
-section[data-testid="stSidebar"] button,
-section[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] {
-    background: #131c2e !important;
-    color: #f8fafc !important;
-    border: 1px solid #263957 !important;
-    border-radius: 12px !important;
-    min-height: 62px !important;
-    box-shadow: none !important;
-}
-
-/* Button text and emoji */
-section[data-testid="stSidebar"] button p,
-section[data-testid="stSidebar"] button span,
-section[data-testid="stSidebar"] button div {
-    color: #f8fafc !important;
-    font-family: 'Syne', sans-serif !important;
-    font-size: 15px !important;
-    font-weight: 700 !important;
-}
-
-/* Hover */
-section[data-testid="stSidebar"] button:hover {
-    background: #1b2a43 !important;
-    border-color: #3b82f6 !important;
-    color: #ffffff !important;
-}
-
-/* Focus */
-section[data-testid="stSidebar"] button:focus,
-section[data-testid="stSidebar"] button:focus-visible {
-    background: #17263e !important;
-    color: #ffffff !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 2px rgba(59,130,246,.25) !important;
-}
-
-/* Source radio labels */
-div[data-testid="stRadio"] label,
-div[data-testid="stRadio"] label p,
-div[data-testid="stRadio"] label span {
-    color: #f1f5f9 !important;
-    font-weight: 700 !important;
-}
-
-/* Toggle labels */
-div[data-testid="stCheckbox"] label,
-div[data-testid="stCheckbox"] label p,
-div[data-testid="stCheckbox"] label span {
-    color: #f1f5f9 !important;
-    font-weight: 600 !important;
-}
-
-/* File uploader text */
-div[data-testid="stFileUploader"] label,
-div[data-testid="stFileUploader"] p,
-div[data-testid="stFileUploader"] span {
-    color: #e2e8f0 !important;
-}
-
 
 /* TEXT VISIBILITY / READABILITY */
 section[data-testid="stSidebar"] button,
@@ -239,10 +157,40 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div {
     color: #e2e8f0 !important;
 }
 
-section[data-testid="stSidebar"] button {
+/* SIDEBAR NAVIGATION BUTTONS — FORCE DARK THEME */
+section[data-testid="stSidebar"] div.stButton > button,
+section[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] {
+    background: #111c31 !important;
+    background-color: #111c31 !important;
+    color: #f8fafc !important;
+    border: 1px solid #263f68 !important;
+    border-radius: 16px !important;
     font-size: 15px !important;
     font-weight: 700 !important;
-    min-height: 48px !important;
+    min-height: 58px !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+section[data-testid="stSidebar"] div.stButton > button:hover,
+section[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:hover {
+    background: #172844 !important;
+    background-color: #172844 !important;
+    color: #ffffff !important;
+    border-color: #2583ff !important;
+    box-shadow: 0 0 15px rgba(37, 131, 255, 0.25) !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+section[data-testid="stSidebar"] div.stButton > button p,
+section[data-testid="stSidebar"] div.stButton > button span,
+section[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] p,
+section[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] span {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    opacity: 1 !important;
 }
 
 div[data-testid="stRadio"] label,
@@ -294,56 +242,6 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
     display: none !important;
 }
 
-
-/* ─── FILE UPLOADER: DARK THEME ──────────────────────────────────────────── */
-div[data-testid="stFileUploader"] {
-    background: #131c2e !important;
-    border: 1px solid #263957 !important;
-    border-radius: 12px !important;
-    padding: 10px !important;
-}
-
-/* Drag/drop area */
-div[data-testid="stFileUploaderDropzone"] {
-    background: #131c2e !important;
-    border: 1px dashed #3b4d6b !important;
-    border-radius: 10px !important;
-    color: #e2e8f0 !important;
-}
-
-/* Upload button */
-div[data-testid="stFileUploader"] button {
-    background: #1e2d45 !important;
-    color: #f8fafc !important;
-    border: 1px solid #3b4d6b !important;
-    border-radius: 9px !important;
-    font-weight: 700 !important;
-}
-
-div[data-testid="stFileUploader"] button:hover {
-    background: #263957 !important;
-    color: #ffffff !important;
-    border-color: #3b82f6 !important;
-}
-
-/* File uploader helper text */
-div[data-testid="stFileUploader"] small,
-div[data-testid="stFileUploader"] span,
-div[data-testid="stFileUploader"] p {
-    color: #cbd5e1 !important;
-}
-
-/* Upload heading */
-div[data-testid="stFileUploader"] label {
-    color: #f8fafc !important;
-    font-weight: 700 !important;
-}
-
-/* Radio/source controls */
-div[data-testid="stRadio"] label {
-    color: #f8fafc !important;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -372,7 +270,6 @@ with st.sidebar:
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
     st.markdown("<br>", unsafe_allow_html=True)
     pages = [("🧠", "Model Architecture"), ("📺", "Live Monitor"), ("📊", "Analytics"), ("🔔", "Alerts")]
     for icon, pg in pages:
@@ -391,15 +288,52 @@ if page == "Model Architecture":
         st.session_state.page = "Live Monitor"
         st.rerun()
 
-    ac1, ac2 = st.columns(2)
-    epochs = list(range(1, 21))
-    acc_val = [0.65, 0.72, 0.78, 0.81, 0.84, 0.86, 0.88, 0.89, 0.90, 0.91, 0.92, 0.92, 0.93, 0.93, 0.94, 0.94, 0.95, 0.95, 0.96, 0.96]
-    map_val = [0.55, 0.62, 0.68, 0.73, 0.76, 0.79, 0.81, 0.83, 0.84, 0.85, 0.86, 0.87, 0.87, 0.88, 0.88, 0.89, 0.89, 0.89, 0.90, 0.90]
+    st.markdown(
+        "<div style=\"color:#94a3b8;font-size:13px;margin:-8px 0 18px 0;\">"
+        "VisDrone person-detection validation results • YOLOv8n • 30 training epochs"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
-    with ac1:
-        st.plotly_chart(px.line(x=epochs, y=acc_val, title="Model Accuracy", template="plotly_dark").update_traces(line_color='#10b981'), use_container_width=True)
-    with ac2:
-        st.plotly_chart(px.line(x=epochs, y=map_val, title="Mean Average Precision", template="plotly_dark").update_traces(line_color='#06b6d4'), use_container_width=True)
+    # Actual results from the completed VisDrone training run.
+    metric_cols = st.columns(4)
+    metrics = [
+        ("Precision", "62.4%"),
+        ("Recall", "42.2%"),
+        ("mAP@50", "46.4%"),
+        ("mAP@50–95", "17.8%"),
+    ]
+    for col, (label, value) in zip(metric_cols, metrics):
+        with col:
+            st.markdown(
+                f"<div class=\"card\" style=\"text-align:center;min-height:82px;\">"
+                f"<div style=\"font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;\">{label}</div>"
+                f"<div style=\"font-size:25px;color:#10b981;font-weight:800;margin-top:7px;\">{value}</div>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+
+    chart_df = pd.DataFrame({
+        "Metric": ["Precision", "Recall", "mAP@50", "mAP@50–95"],
+        "Score": [62.4, 42.2, 46.4, 17.8],
+    })
+    fig = px.bar(
+        chart_df,
+        x="Metric",
+        y="Score",
+        title="VisDrone Validation Metrics",
+        text="Score",
+        template="plotly_dark",
+    )
+    fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+    fig.update_yaxes(title="Score (%)", range=[0, 70])
+    fig.update_xaxes(title="Detection Metric")
+    fig.update_layout(showlegend=False, margin=dict(t=60, b=20, l=20, r=20))
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.caption(
+        "Note: These are object-detection validation metrics. Traditional classification accuracy is not used as the primary metric for this detector."
+    )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 2. LIVE MONITOR
