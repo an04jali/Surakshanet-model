@@ -1,4 +1,3 @@
-import winsound
 import time
 
 last_alert_time = 0
@@ -8,5 +7,5 @@ def trigger_alert(risk, count):
 
     if risk == "High" and count > 10:
         if time.time() - last_alert_time > 3:
-            winsound.Beep(2000, 500)
+            print("⚠️ HIGH RISK ALERT - Crowd count:", count)
             last_alert_time = time.time()
