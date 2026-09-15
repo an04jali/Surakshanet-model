@@ -608,6 +608,13 @@ elif page == "Live Monitor":
                             if not ret:
                                 break
 
+                            # ----------------------------------------------------
+                            # Analyze only every 4th frame
+                            # ----------------------------------------------------
+                            if processed % 4 != 0:
+                                processed += 1
+                                continue
+
                             frame = cv2.resize(
                                 frame,
                                 (640, 480)
@@ -672,7 +679,8 @@ elif page == "Live Monitor":
 
                             processed += 1
 
-                            if total_frames > 0:
+                            # Update progress less frequently
+                            if total_frames > 0 and processed % 4 == 0:
 
                                 progress.progress(
                                     min(
