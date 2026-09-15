@@ -8,6 +8,10 @@ import pandas as pd
 import os
 import plotly.express as px
 import plotly.graph_objects as go
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
+import av
+import threading
+import requests
 
 # ─── APP CONFIG ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -61,6 +65,144 @@ def render_panel(risk_ph, density_ph, zones_ph, count, crowd_level, crowd_pct, d
             </div>
         </div>
     </div>""", unsafe_allow_html=True)
+
+
+# ============================================================
+# TELEGRAM ALERT
+# ============================================================
+
+def get_telegram_credentials():
+    try:
+        token = st.secrets["TELEGRAM_BOT_TOKEN"]
+        chat_id = st.secrets["TELEGRAM_CHAT_ID"]
+        return token, chat_id
+    except Exception:
+        return None, None
+
+
+def send_telegram_alert(risk, count, movement=0, behavior="NORMAL"):
+    token, chat_id = get_telegram_credentials()
+
+    if not token or not chat_id:
+        return False
+
+    message = (
+        "🚨 SURAKSHANET ALERT 🚨\n\n"
+        f"Risk Level: {risk}\n"
+        f"People Detected: {count}\n"
+        f"Movement: {movement:.2f}\n"
+        f"Behavior: {behavior}\n\n"
+        "Suspicious activity detected."
+    )
+
+    try:
+        response = requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data={
+                "chat_id": chat_id,
+                "text": message
+            },
+            timeout=5
+        )
+
+        return response.ok
+
+    except Exception as e:
+        print("Telegram error:", e)
+        return False
+
+
+telegram_last_alert = 0
+TELEGRAM_COOLDOWN = 15
+
+
+def maybe_send_alert(risk, count, movement, behavior):
+    global telegram_last_alert
+
+    if risk != "High":
+        return
+
+    if count <= 10:
+        return
+
+    current_time = time.time()
+
+    if current_time - telegram_last_alert < TELEGRAM_COOLDOWN:
+        return
+
+    success = send_telegram_alert(
+        risk,
+        count,
+        movement,
+        behavior
+    )
+
+    if success:
+        telegram_last_alert = current_time
+        print("🚨 Telegram alert sent")
+
+
+# ============================================================
+# BROWSER WEBCAM PROCESSOR
+# ============================================================
+
+class SurakshaNetVideoProcessor(VideoProcessorBase):
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.last_result = None
+        self.frame_count = 0
+
+    def recv(self, frame):
+
+        img = frame.to_ndarray(format="bgr24")
+
+        # Keep processing resolution controlled
+        img = cv2.resize(img, (640, 480))
+
+        try:
+            pf, count, dens, cl, cp, zones, beh, bc = process_frame(
+                img,
+                st.session_state.get("heatmap_on", False),
+                st.session_state.get("zones_on", False)
+            )
+
+            # Store latest result
+            with self.lock:
+                self.last_result = {
+                    "count": count,
+                    "density": dens,
+                    "risk": cl,
+                    "risk_pct": cp,
+                    "zones": zones,
+                    "behavior": beh,
+                    "behavior_conf": bc
+                }
+
+            # Telegram alert
+            movement = dens * 100
+
+            maybe_send_alert(
+                cl,
+                count,
+                movement,
+                beh
+            )
+
+            return av.VideoFrame.from_ndarray(
+                pf,
+                format="bgr24"
+            )
+
+        except Exception as e:
+
+            print("Webcam processing error:", e)
+
+            return av.VideoFrame.from_ndarray(
+                img,
+                format="bgr24"
+            )
+
 
 # ─── DARK THEME & PREMIUM BRANDING CSS ───────────────────────────────────────
 st.markdown("""
@@ -339,51 +481,286 @@ if page == "Model Architecture":
 # 2. LIVE MONITOR
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Live Monitor":
-    st.markdown('<div class="ph"><h1>📺 Real-time Monitoring</h1></div>', unsafe_allow_html=True)
+
+    st.markdown(
+        '<div class="ph"><h1>📺 Real-time Monitoring</h1></div>',
+        unsafe_allow_html=True
+    )
+
     col_vid, col_panel = st.columns([3, 1.1])
 
+    # ------------------------------------------------------------
+    # RIGHT PANEL
+    # ------------------------------------------------------------
+
     with col_panel:
+
         risk_ph = st.empty()
         density_ph = st.empty()
         zones_ph = st.empty()
-        st.markdown('<div class="card"><div class="card-title">Overlays</div>', unsafe_allow_html=True)
-        st.session_state.heatmap_on = st.toggle("🔥 Heatmap", st.session_state.heatmap_on)
-        st.session_state.zones_on = st.toggle("🗺️ Zones", st.session_state.zones_on)
-        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown(
+            '<div class="card"><div class="card-title">Overlays</div>',
+            unsafe_allow_html=True
+        )
+
+        st.session_state.heatmap_on = st.toggle(
+            "🔥 Heatmap",
+            st.session_state.heatmap_on
+        )
+
+        st.session_state.zones_on = st.toggle(
+            "🗺️ Zones",
+            st.session_state.zones_on
+        )
+
+        st.markdown(
+            '</div>',
+            unsafe_allow_html=True
+        )
+
+    # ------------------------------------------------------------
+    # VIDEO AREA
+    # ------------------------------------------------------------
 
     with col_vid:
-        mode = st.radio("Source", ["📁 Upload Video", "📷 Live Camera"], horizontal=True, label_visibility="collapsed")
-        frm_ph = st.empty()
+
+        mode = st.radio(
+            "Source",
+            [
+                "📁 Upload Video",
+                "📷 Live Camera"
+            ],
+            horizontal=True,
+            label_visibility="collapsed"
+        )
+
+        # ========================================================
+        # UPLOAD VIDEO
+        # ========================================================
 
         if "Upload" in mode:
-            upl = st.file_uploader("Upload Video", type=["mp4","avi","mov"])
+
+            upl = st.file_uploader(
+                "Upload Video",
+                type=["mp4", "avi", "mov"],
+                key="video_uploader"
+            )
+
             if upl:
-                tfile = tempfile.NamedTemporaryFile(delete=False)
-                tfile.write(upl.read())
-                cap = cv2.VideoCapture(tfile.name)
-                while cap.isOpened():
-                    ret, frame = cap.read()
-                    if not ret: break
-                    frame = cv2.resize(frame, (640, 480))
-                    pf, count, dens, cl, cp, zones, beh, bc = process_frame(frame, st.session_state.heatmap_on, st.session_state.zones_on)
-                    frm_ph.image(cv2.cvtColor(pf, cv2.COLOR_BGR2RGB))
-                    render_panel(risk_ph, density_ph, zones_ph, count, cl, cp, dens, zones, beh, bc)
-                cap.release()
+
+                # Save uploaded video temporarily
+                with tempfile.NamedTemporaryFile(
+                    delete=False,
+                    suffix=".mp4"
+                ) as tmp:
+
+                    tmp.write(upl.getbuffer())
+                    video_path = tmp.name
+
+                st.video(upl)
+
+                st.markdown(
+                    "### 🔍 AI Analysis"
+                )
+
+                start_analysis = st.button(
+                    "▶ Analyze Video",
+                    type="primary"
+                )
+
+                if start_analysis:
+
+                    cap = cv2.VideoCapture(video_path)
+
+                    if not cap.isOpened():
+
+                        st.error(
+                            "Unable to open uploaded video."
+                        )
+
+                    else:
+
+                        total_frames = int(
+                            cap.get(
+                                cv2.CAP_PROP_FRAME_COUNT
+                            )
+                        )
+
+                        fps = cap.get(
+                            cv2.CAP_PROP_FPS
+                        )
+
+                        if fps <= 0:
+                            fps = 25
+
+                        progress = st.progress(0)
+
+                        frame_placeholder = st.empty()
+
+                        processed = 0
+                        last_count = 0
+
+                        while True:
+
+                            ret, frame = cap.read()
+
+                            if not ret:
+                                break
+
+                            frame = cv2.resize(
+                                frame,
+                                (640, 480)
+                            )
+
+                            try:
+
+                                (
+                                    pf,
+                                    count,
+                                    dens,
+                                    cl,
+                                    cp,
+                                    zones,
+                                    beh,
+                                    bc
+                                ) = process_frame(
+                                    frame,
+                                    st.session_state.heatmap_on,
+                                    st.session_state.zones_on
+                                )
+
+                                # Display processed frame
+                                frame_placeholder.image(
+                                    cv2.cvtColor(
+                                        pf,
+                                        cv2.COLOR_BGR2RGB
+                                    ),
+                                    channels="RGB"
+                                )
+
+                                render_panel(
+                                    risk_ph,
+                                    density_ph,
+                                    zones_ph,
+                                    count,
+                                    cl,
+                                    cp,
+                                    dens,
+                                    zones,
+                                    beh,
+                                    bc
+                                )
+
+                                # Telegram alert
+                                movement = dens * 100
+
+                                maybe_send_alert(
+                                    cl,
+                                    count,
+                                    movement,
+                                    beh
+                                )
+
+                                last_count = count
+
+                            except Exception as e:
+
+                                st.warning(
+                                    f"Frame processing error: {e}"
+                                )
+
+                            processed += 1
+
+                            if total_frames > 0:
+
+                                progress.progress(
+                                    min(
+                                        processed / total_frames,
+                                        1.0
+                                    )
+                                )
+
+                        cap.release()
+
+                        st.success(
+                            f"Analysis complete — "
+                            f"{processed} frames processed."
+                        )
+
+        # ========================================================
+        # BROWSER WEBCAM
+        # ========================================================
+
         else:
-            run = st.toggle("▶ Start Camera Stream")
-            if run:
-                cap = cv2.VideoCapture(0)
-                while run:
-                    ret, frame = cap.read()
-                    if not ret: break
-                    frame = cv2.resize(frame, (640, 480))
-                    # Inference & Dynamic UI Update
-                    pf, count, dens, cl, cp, zones, beh, bc = process_frame(frame, st.session_state.heatmap_on, st.session_state.zones_on)
-                    frm_ph.image(cv2.cvtColor(pf, cv2.COLOR_BGR2RGB))
-                    render_panel(risk_ph, density_ph, zones_ph, count, cl, cp, dens, zones, beh, bc)
-                    # Sync for Analytics
-                    st.session_state.people_count, st.session_state.risk_level = count, cl
-                cap.release()
+
+            st.markdown(
+                "### 📷 Browser Camera"
+            )
+
+            st.info(
+                "Click START below and allow camera permission "
+                "when your browser asks."
+            )
+
+            ctx = webrtc_streamer(
+                key="surakshanet-camera",
+
+                video_processor_factory=
+                    SurakshaNetVideoProcessor,
+
+                media_stream_constraints={
+                    "video": True,
+                    "audio": False
+                },
+
+                async_processing=True
+            )
+
+            # ----------------------------------------------------
+            # Display latest detection results
+            # ----------------------------------------------------
+
+            if ctx.video_processor:
+
+                result = None
+
+                with ctx.video_processor.lock:
+
+                    if ctx.video_processor.last_result:
+                        result = dict(
+                            ctx.video_processor.last_result
+                        )
+
+                if result:
+
+                    render_panel(
+                        risk_ph,
+                        density_ph,
+                        zones_ph,
+                        result["count"],
+                        result["risk"],
+                        result["risk_pct"],
+                        result["density"],
+                        result["zones"],
+                        result["behavior"],
+                        result["behavior_conf"]
+                    )
+
+                    # Sync analytics
+                    st.session_state.people_count = (
+                        result["count"]
+                    )
+
+                    st.session_state.risk_level = (
+                        result["risk"]
+                    )
+
+                else:
+
+                    st.caption(
+                        "Waiting for camera frames..."
+                    )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 3. ANALYTICS

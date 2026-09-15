@@ -1,4 +1,5 @@
 streamlit
+streamlit-webrtc
 opencv-python-headless
 torch
 torchvision
@@ -7,3 +8,4 @@ pillow
 ultralytics
 pandas
 plotly
+requests
