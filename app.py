@@ -12,6 +12,7 @@ from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
 import av
 import threading
 import requests
+from datetime import datetime
 
 # ─── APP CONFIG ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -80,7 +81,8 @@ def get_telegram_credentials():
         return None, None
 
 
-def send_telegram_alert(risk, count, movement=0, behavior="NORMAL"):
+def send_telegram_alert(risk, count, movement=0, behavior="NORMAL", source="Unknown"):
+
     token, chat_id = get_telegram_credentials()
 
     if not token or not chat_id:
@@ -91,7 +93,8 @@ def send_telegram_alert(risk, count, movement=0, behavior="NORMAL"):
         f"Risk Level: {risk}\n"
         f"People Detected: {count}\n"
         f"Movement: {movement:.2f}\n"
-        f"Behavior: {behavior}\n\n"
+        f"Behavior: {behavior}\n"
+        f"Source: {source}\n\n"
         "Suspicious activity detected."
     )
 
@@ -116,30 +119,34 @@ telegram_last_alert = 0
 TELEGRAM_COOLDOWN = 15
 
 
-def maybe_send_alert(risk, count, movement, behavior):
+def maybe_send_alert(risk, count, movement, behavior, source="Unknown"):
     global telegram_last_alert
 
     if risk != "High":
-        return
+        return False
 
     if count <= 10:
-        return
+        return False
 
     current_time = time.time()
 
     if current_time - telegram_last_alert < TELEGRAM_COOLDOWN:
-        return
+        return False
 
     success = send_telegram_alert(
         risk,
         count,
         movement,
-        behavior
+        behavior,
+        source
     )
 
     if success:
         telegram_last_alert = current_time
         print("🚨 Telegram alert sent")
+        return True
+
+    return False
 
 
 # ============================================================
@@ -152,13 +159,20 @@ class SurakshaNetVideoProcessor(VideoProcessorBase):
         self.lock = threading.Lock()
         self.last_result = None
         self.frame_count = 0
+        self.alert_events = []
+        self.latest_source = "Browser Webcam"
 
     def recv(self, frame):
 
         img = frame.to_ndarray(format="bgr24")
-
-        # Keep processing resolution controlled
         img = cv2.resize(img, (640, 480))
+
+        self.frame_count += 1
+
+        # Analyze only every 4th browser frame to keep CPU usage manageable.
+        # Non-analyzed frames are returned immediately, so the webcam remains smooth.
+        if self.frame_count % 4 != 0:
+            return av.VideoFrame.from_ndarray(img, format="bgr24")
 
         try:
             pf, count, dens, cl, cp, zones, beh, bc = process_frame(
@@ -179,15 +193,23 @@ class SurakshaNetVideoProcessor(VideoProcessorBase):
                     "behavior_conf": bc
                 }
 
-            # Telegram alert
+            # Telegram alert + in-app alert history event
             movement = dens * 100
-
-            maybe_send_alert(
-                cl,
-                count,
-                movement,
-                beh
+            alert_sent = maybe_send_alert(
+                cl, count, movement, beh, "Browser Webcam"
             )
+
+            if alert_sent:
+                with self.lock:
+                    self.alert_events.append({
+                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "source": "Browser Webcam",
+                        "risk": cl,
+                        "count": int(count),
+                        "movement": round(float(movement), 2),
+                        "behavior": beh,
+                        "telegram": "Sent"
+                    })
 
             return av.VideoFrame.from_ndarray(
                 pf,
@@ -392,6 +414,7 @@ if "page" not in st.session_state:
     st.session_state.update({
         "page": "Model Architecture",
         "alerts": [],
+        "analysis_history": [],
         "people_count": 0,
         "risk_level": "Low",
         "behavior": "NORMAL",
@@ -600,6 +623,10 @@ elif page == "Live Monitor":
 
                         processed = 0
                         last_count = 0
+                        analyzed_frames = 0
+                        max_count = 0
+                        highest_risk = "Low"
+                        video_alerts = 0
 
                         while True:
 
@@ -662,12 +689,26 @@ elif page == "Live Monitor":
                                 # Telegram alert
                                 movement = dens * 100
 
-                                maybe_send_alert(
-                                    cl,
-                                    count,
-                                    movement,
-                                    beh
+                                alert_sent = maybe_send_alert(
+                                    cl, count, movement, beh, upl.name
                                 )
+
+                                if alert_sent:
+                                    video_alerts += 1
+                                    st.session_state.alerts.append({
+                                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                        "source": upl.name,
+                                        "risk": cl,
+                                        "count": int(count),
+                                        "movement": round(float(movement), 2),
+                                        "behavior": beh,
+                                        "telegram": "Sent"
+                                    })
+
+                                analyzed_frames += 1
+                                max_count = max(max_count, int(count))
+                                if {"Low": 0, "Medium": 1, "High": 2}.get(cl, 0) > {"Low": 0, "Medium": 1, "High": 2}.get(highest_risk, 0):
+                                    highest_risk = cl
 
                                 last_count = count
 
@@ -691,9 +732,19 @@ elif page == "Live Monitor":
 
                         cap.release()
 
+                        st.session_state.analysis_history.append({
+                            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "source": upl.name,
+                            "frames": int(processed),
+                            "analyzed_frames": int(analyzed_frames),
+                            "max_people": int(max_count),
+                            "risk": highest_risk,
+                            "alerts": int(video_alerts)
+                        })
+
                         st.success(
-                            f"Analysis complete — "
-                            f"{processed} frames processed."
+                            f"Analysis complete — {processed} frames scanned, "
+                            f"{analyzed_frames} analyzed."
                         )
 
         # ========================================================
@@ -764,20 +815,81 @@ elif page == "Live Monitor":
                         result["risk"]
                     )
 
-                else:
+                # Bring alert events produced by the background WebRTC processor
+                # into the normal Streamlit session state for the Alerts page.
+                with ctx.video_processor.lock:
+                    pending_alerts = list(ctx.video_processor.alert_events)
+                    ctx.video_processor.alert_events.clear()
+                if pending_alerts:
+                    st.session_state.alerts.extend(pending_alerts)
 
-                    st.caption(
-                        "Waiting for camera frames..."
-                    )
+                if not result:
+                    st.caption("Waiting for camera frames...")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 3. ANALYTICS
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Analytics":
     st.markdown('<div class="ph"><h1>📊 System Statistics</h1></div>', unsafe_allow_html=True)
-    if os.path.exists("data/logs.csv"):
-        df = pd.read_csv("data/logs.csv")
-        df["time"] = pd.to_datetime(df["time"], unit="s")
-        st.plotly_chart(px.area(df.tail(100), x="time", y="count", title="Crowd Density Trend", template="plotly_dark"), use_container_width=True)
+
+    history = st.session_state.get("analysis_history", [])
+
+    if history:
+        hdf = pd.DataFrame(history)
+        st.markdown("### 🎬 Analyze History")
+        st.dataframe(
+            hdf.rename(columns={
+                "time": "Analyzed At",
+                "source": "Video",
+                "frames": "Frames Scanned",
+                "analyzed_frames": "Frames Analyzed",
+                "max_people": "Max People",
+                "risk": "Highest Risk",
+                "alerts": "Alerts"
+            }),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        chart_df = hdf[["time", "max_people"]].copy()
+        chart_df["time"] = pd.to_datetime(chart_df["time"])
+        st.plotly_chart(
+            px.line(chart_df, x="time", y="max_people", markers=True,
+                    title="Maximum People Detected per Analysis", template="plotly_dark"),
+            use_container_width=True
+        )
     else:
-        st.info("No data available yet.")
+        st.info("No analysis history yet. Upload a video and click Analyze Video.")
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 4. ALERTS
+# ═══════════════════════════════════════════════════════════════════════════════
+elif page == "Alerts":
+    st.markdown('<div class="ph"><h1>🔔 Alert History</h1></div>', unsafe_allow_html=True)
+
+    alerts = st.session_state.get("alerts", [])
+    if alerts:
+        st.success(f"{len(alerts)} suspicious event(s) recorded in this session.")
+        adf = pd.DataFrame(alerts)
+        st.dataframe(
+            adf.rename(columns={
+                "time": "Time",
+                "source": "Source",
+                "risk": "Risk",
+                "count": "People",
+                "movement": "Movement",
+                "behavior": "Behavior",
+                "telegram": "Telegram"
+            }),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        for event in reversed(alerts[-10:]):
+            st.markdown(
+                f"**🚨 {event['risk']} — {event['source']}**  "
+                f"`{event['time']}` · People: **{event['count']}** · "
+                f"Movement: **{event['movement']}** · Telegram: **{event['telegram']}**"
+            )
+    else:
+        st.info("No suspicious alerts recorded yet. Start the webcam or analyze a video.")
