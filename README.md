@@ -12,7 +12,7 @@
 ## 🚀 Live Demo
 
 🌐 **Try SurakshaNet:**  
-**[Add your Streamlit deployed URL here]**
+**[https://surakshanet-ai.streamlit.app/]**
 
 The deployed application supports:
 
@@ -351,61 +351,13 @@ Add your project demonstration video here.
 
 <!-- Replace VIDEO_URL with your YouTube/Loom/Google Drive video link -->
 
-▶️ Watch SurakshaNet Demo
-
-🖼️ Screenshots
-🏠 Dashboard
-
-Add a screenshot of the main dashboard here.
 
 ![SurakshaNet Dashboard](screenshots/dashboard.png)
 📹 Live Webcam Detection
 
-Add your webcam detection screenshot here.
-
-![Live Webcam Detection](screenshots/webcam.png)
-📤 Video Analysis
-
 Add your video upload/analysis screenshot here.
 
 ![Video Analysis](screenshots/video-analysis.png)
-🚨 Alert Detection
-
-Add your suspicious activity alert screenshot here.
-
-![Alert Detection](screenshots/alert.png)
-📱 Telegram Notification
-
-Add a screenshot of the Telegram alert here.
-
-![Telegram Alert](screenshots/telegram-alert.png)
-📊 Analytics & History
-
-Add screenshots of:
-
-Analysis History
-Alert History
-Risk graphs
-Crowd statistics
-![Analytics](screenshots/analytics.png)
-🎬 Recommended GitHub Media Structure
-
-For a clean repository, create:
-
-screenshots/
-│
-├── dashboard.png
-├── webcam.png
-├── video-analysis.png
-├── alert.png
-├── telegram-alert.png
-└── analytics.png
-
-You can then reference them in the README using:
-
-![Dashboard](screenshots/dashboard.png)
-
-For videos, it is better to upload the actual demo to YouTube or another video host and place the link in the README rather than committing a large video file directly to GitHub.
 
 🎯 Use Cases
 
@@ -424,23 +376,12 @@ SurakshaNet can be adapted for:
 Potential future improvements include:
 
 Persistent cloud-based analysis history
-Advanced activity recognition
-Better temporal action recognition
 Multi-camera support
 Automatic incident snapshots
 Email/SMS alerts
 Cloud database integration
-Improved risk prediction using a trained dataset
-Real-time analytics dashboard
 GPU-accelerated inference
-More robust suspicious-activity classification
-⚠️ Limitations
 
-SurakshaNet is a prototype/demo system.
-
-Risk and suspicious-activity predictions depend on the models, thresholds, video quality, camera angle, lighting, and available computational resources.
-
-The system should therefore be treated as an AI-assisted monitoring tool, not as a replacement for human security personnel or emergency services.
 
 👩‍💻 Author
 
@@ -476,6 +417,12 @@ AI-Powered Crowd Safety & Suspicious Activity Detection
 
 📹 Webcam | 📤 Video Analysis | 🚨 Telegram Alerts | 📊 Analytics
 
-[Screenshot]
-
-🎬 Watch Demo
+[<img width="1838" height="899" alt="image" src="https://github.com/user-attachments/assets/b4934a60-bdfa-48ff-9358-9487289b2a6b" />
+<img width="1643" height="885" alt="image" src="https://github.com/user-attachments/assets/2a639fe7-69e6-45da-ab3e-b6da4a2f1dbc" />
+<img width="1843" height="904" alt="image" src="https://github.com/user-attachments/assets/0faf92ad-a1cd-45d1-a2c7-ed9fac1e640d" />
+<img width="1847" height="842" alt="image" src="https://github.com/user-attachments/assets/22ef3ad5-8422-4fb9-b94f-b561c7e30974" />
+<img width="1521" height="881" alt="image" src="https://github.com/user-attachments/assets/02437d17-1cd9-41bc-8f6e-d807859aa1e9" />
+<img width="906" height="621" alt="image" src="https://github.com/user-attachments/assets/27613210-e526-4b1f-859b-260d19abb191" />
+<img width="1401" height="799" alt="image" src="https://github.com/user-attachments/assets/cd244eba-56cb-4835-9468-5f4bafd2f932" />
+<img width="751" height="958" alt="image" src="https://github.com/user-attachments/assets/b403f117-0ceb-486a-b787-5ee5b928ca09" />
+]
