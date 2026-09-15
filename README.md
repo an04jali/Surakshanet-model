@@ -80,3 +80,69 @@ Browser Webcam / Video Upload
       │               │
       ▼               ▼
   Dashboard      Telegram Alert
+
+🛠️ Tech Stack
+Python
+Streamlit
+Streamlit WebRTC
+OpenCV
+YOLOv8
+PyTorch
+Torchvision
+Vision Transformer
+NumPy
+Pandas
+Plotly
+Telegram Bot API
+🚨 Telegram Alerts
+
+When high-risk suspicious activity is detected, SurakshaNet sends an instant Telegram notification containing:
+
+Source / video name
+Risk level
+People detected
+Movement score
+
+Example:
+
+🚨 SURAKSHANET ALERT 🚨
+
+Source: crowd_test.mp4
+Risk Level: High
+People Detected: 15
+Movement Score: 31
+
+Suspicious activity detected.
+📁 Project Structure
+SurakshaNet/
+│
+├── app.py
+├── alerts.py
+├── model.py
+├── tracker.py
+├── mini_transformer.py
+├── camera_test.py
+│
+├── requirements.txt
+├── packages.txt
+├── .gitignore
+│
+└── .streamlit/
+    └── secrets.toml
+
+.streamlit/secrets.toml is excluded from Git and contains private Telegram credentials.
+
+⚙️ Run Locally
+git clone https://github.com/an04jali/Surakshanet-model.git
+cd Surakshanet-model
+
+python -m venv venv
+venv\Scripts\activate
+
+pip install -r requirements.txt
+
+streamlit run app.py
+
+Open:
+
+http://localhost:8501
